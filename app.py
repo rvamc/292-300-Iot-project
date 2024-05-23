@@ -9,7 +9,7 @@ CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 model = load('my_model.joblib')  # Load your model
 
 # Twilio setup
-account_sid = 'AC46c52c3e81a5a1c9b45a765ed55b6275'
+account_sid = 'AC46c52c3e81a5a1c9b45a765ed55b6270'
 auth_token = '9d1e312e4f862df031581cd212d603af'
 twilio_client = Client(account_sid, auth_token)
 twilio_number = '+13203058269'  # e.g., "+1234567890"
