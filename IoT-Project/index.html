@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Health Predictor</title>
+    <script src="https://www.gstatic.com/firebasejs/8.0.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.2/firebase-database.js"></script>    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux5dp9foHXYmYmos-Jyr0viNqn8_obM0",
+            authDomain: "iot-project-ed664.firebaseapp.com",
+            databaseURL: "https://iot-project-ed664-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "iot-project-ed664",
+            storageBucket: "iot-project-ed664.appspot.com",
+            messagingSenderId: "138203428330",
+            appId: "1:138203428330:web:5d50310bd8f5422af0ee93",
+            measurementId: "G-N3QDFYQ4JS"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database(app);
+    </script>
+
+    <script>
+        const spo2Ref = database.ref('ESP/SPO2');
+        let spo2Samples = [];
+        let lastUpdateSPO2 = Date.now();
+        
+        spo2Ref.on('value', (snapshot) => {
+            const now = Date.now();
+            const spo2 = snapshot.val();
+            if (spo2 == 0 || spo2 == null || spo2 < 30) {
+                return;
+            }
+            else {
+                spo2Samples.push(spo2);
+            }
+            console.log(spo2);
+            
+            if (now - lastUpdateSPO2 >= 15000) {
+                const sum = spo2Samples.reduce((a, b) => a + b, 0);
+                const averagespo2 = sum / spo2Samples.length;
+        
+                document.getElementById('spo2').value = Math.round(averagespo2);
+        
+                temperatureSamples = [];
+                lastUpdateSPO2 = now;
+            }
+        });
+    </script>
+
+<script>
+    const heartRateRef = database.ref('ESP/HeartRate');
+    let heartRateSamples = [];
+    let lastUpdateTime = Date.now();
+
+    heartRateRef.on('value', (snapshot) => {
+        const now = Date.now();
+        const heartRate = snapshot.val();
+        if (heartRate == 0 || heartRate == null || heartRate < 30) {
+            return;
+        }
+        else {
+            heartRateSamples.push(heartRate);
+        }
+        console.log(heartRate);
+        
+        if (now - lastUpdateTime >= 15000) {
+            const sum = heartRateSamples.reduce((a, b) => a + b, 0);
+            const averageHeartRate = sum / heartRateSamples.length;
+
+            document.getElementById('heart-rate').value = Math.round(averageHeartRate);
+
+            heartRateSamples = [];
+            lastUpdateTime = now;
+        }
+    });
+</script>
+
+    
+
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen relative">
+    <div class="bg-white shadow-lg rounded-lg p-8 w-96">
+        <h1 class="text-2xl font-bold text-center mb-6">Heart Health Predictor</h1>
+        <div class="grid gap-4 mb-4">
+            <div id="error-message" class="text-red-500 text-sm hidden"></div>
+            <div>
+                <label for="patient-name" class="block font-medium text-gray-700">Patient Name:</label>
+                <input type="text" id="patient-name" name="patient-name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter Patient's Name">
+            </div>
+            <div>
+                <label for="doctor-phone" class="block font-medium text-gray-700">Doctor's Phone:</label>
+                <input type="tel" id="doctor-phone" name="doctor-phone" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter Doctor's Phone Number">
+            </div>                       
+            <div>
+                <label for="heart-rate" class="block font-medium text-gray-700">Heart Rate:</label>
+                <input type="number" id="heart-rate" name="heart-rate" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            </div>
+            <div>
+                <label for="spo2" class="block font-medium text-gray-700">SpO2:</label>
+                <input type="number" id="spo2" name="spo2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            </div>
+            <div>
+                <label for="temperature" class="block font-medium text-gray-700">Temperature:</label>
+                <input type="number" id="temperature" name="temperature" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter Temperature">
+            </div>
+        </div>
+        <button onclick="sendData()" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Analyze
+        </button>
+        <!-- Loading Indicator -->
+        <div id="loading" class="fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex justify-center items-center hidden">
+            <div class="text-white text-lg">Analyzing...</div>
+        </div>
+        <h2 id="result" class="mt-6 text-lg font-semibold text-center"></h2>
+    </div>
+
+</body>
+
+<script>
+    function sendData() {
+        const heartRate = document.getElementById('heart-rate').value;
+        const spo2 = document.getElementById('spo2').value;
+        const temperature = document.getElementById('temperature').value;
+        const doctorPhone = document.getElementById('doctor-phone').value;
+        const patientName = document.getElementById('patient-name').value;
+        const errorMessage = document.getElementById('error-message');
+
+        // Clear previous error messages
+        errorMessage.textContent = '';
+        errorMessage.classList.add('hidden');
+
+        // Validate inputs
+        if (!patientName || !doctorPhone || !temperature) {
+            errorMessage.textContent = 'Please fill in all required fields.';
+            errorMessage.classList.remove('hidden');
+            return; // Stop the function from proceeding
+        }
+
+        // Show loading indicator
+        document.getElementById('loading').style.display = 'flex';
+
+        fetch('http://127.0.0.1:8000/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                heart_rate: heartRate,
+                spo2: spo2,
+                temperature: temperature
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            let resultText = '';
+            if (data.prediction === 0) {
+                resultText = 'Health Status - Stable, No immediate concerns.';
+            } else {
+                resultText = 'Health Alert - Potential issues detected, Please consult a healthcare provider.';
+                // Call sendSMS function only if the prediction is abnormal
+                sendSMS(doctorPhone, patientName);
+            }
+            document.getElementById('result').innerText = resultText;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('result').innerText = 'Error: Unable to process data.';
+        })
+        .finally(() => {
+            document.getElementById('loading').style.display = 'none'; // Hide loading screen regardless of result
+        });
+    }
+
+    function sendSMS(doctorPhone, patientName) {
+        fetch('http://127.0.0.1:8000/send-sms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: `An abnormal heart health prediction was detected on your patient - ${patientName}. Please check the application.`,
+                to: doctorPhone  // Sending the doctor's phone number to the backend
+            })
+        })
+        .then(response => response.text())
+        .then(data => console.log("SMS Sent:", data))
+        .catch(error => console.error('Error sending SMS:', error));
+    }
+
+
+</script>
+
+</html>
